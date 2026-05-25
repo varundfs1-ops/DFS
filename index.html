@@ -4,15 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Fire Report Portal</title>
-  <!-- Tailwind CSS for modern look -->
-  <script src="https://jsdelivr.net"></script>
+  <!-- Stable Production Tailwind CSS Engine Layout -->
+  <link href="https://jsdelivr.net" rel="stylesheet">
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
 
   <div class="bg-white p-8 rounded-xl shadow-md w-full max-w-2xl">
     <h2 class="text-2xl font-bold text-center text-red-600 mb-6">🧯 Fire Records Portal</h2>
     
-    <!-- Segmented Navigation Toggle -->
+    <!-- Segmented Navigation Toggle Tabs -->
     <div class="flex bg-gray-200 p-1 rounded-lg mb-6">
       <button id="tab1" onclick="switchTab('direct')" class="w-1/2 text-center py-2 rounded-md font-medium text-sm transition bg-white text-gray-800 shadow">Search by Report #</button>
       <button id="tab2" onclick="switchTab('browse')" class="w-1/2 text-center py-2 rounded-md font-medium text-sm transition text-gray-600 hover:text-gray-800">Browse Station & Dates</button>
@@ -45,7 +45,7 @@
       </div>
       <button onclick="searchIncidents()" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-medium p-2.5 rounded-lg transition">Search Records</button>
       
-      <!-- Results Table -->
+      <!-- Results Data Output Display Table -->
       <div id="tableWrapper" class="overflow-x-auto mt-6 hidden">
         <table class="min-w-full divide-y divide-gray-200 text-sm">
           <thead class="bg-gray-50">
@@ -60,12 +60,12 @@
       </div>
     </div>
 
-    <!-- Status Message Indicator -->
+    <!-- Status Loading Message Indicator -->
     <div id="statusMsg" class="mt-4 text-center text-sm font-medium text-gray-500 hidden">Processing your request... Please wait.</div>
   </div>
 
   <script>
-    // Paste your Google Apps Script Web App URL here
+    // Paste your complete Web App Exec URL exactly inside the quotation marks below
     const API_URL = "https://script.google.com/macros/s/AKfycbwRw_zFfv_HH5R7Z0hVckUU-33b7T9HhWR7_mpnLpMqBNtuFgrSUW_x8hoJgmleZ-Av/exec";
 
     function switchTab(type) {
@@ -85,7 +85,7 @@
     function toggleStatus(show, text = "Processing...") {
       const element = document.getElementById('statusMsg');
       element.innerText = text;
-      element.classList.toggle('hidden', !show);
+      if(show) { element.classList.remove('hidden'); } else { element.classList.add('hidden'); }
     }
 
     async function downloadDirectReport() {
@@ -99,7 +99,7 @@
         if(data.error) throw new Error(data.error);
         window.open(data.downloadUrl, '_blank');
       } catch(err) {
-        alert("Error: " + err.message);
+        alert("System Diagnoses Message:\n" + err.message + "\n\nVerify that you used the macro link that ends strictly with /exec.");
       } finally {
         toggleStatus(false);
       }
@@ -117,12 +117,17 @@
         const response = await fetch(`${API_URL}?action=search&station=${encodeURIComponent(station)}&start=${start}&end=${end}`);
         const data = await response.json();
         
+        if(data.error) {
+          alert("Database Error: " + data.error);
+          return;
+        }
+
         const tbody = document.getElementById('resultsBody');
         tbody.innerHTML = "";
         
-        if(data.length === 0) {
+        if(!Array.isArray(data) || data.length === 0) {
           document.getElementById('tableWrapper').classList.add('hidden');
-          alert("No records found matching those parameters.");
+          alert("No records found matching those parameters. Check your column headers names in Sheet.");
           return;
         }
         
@@ -130,13 +135,13 @@
           tbody.innerHTML += `
             <tr class="hover:bg-gray-50">
               <td class="px-4 py-3 text-gray-600">${row.serial}</td>
-              <td class="px-4 py-3"><button onclick="getReportFromTable('${row.reportNum}')" class="text-blue-600 font-medium hover:underline cursor-pointer">${row.reportNum}</button></td>
+              <td class="px-4 py-3"><button onclick="getReportFromTable('${row.reportNum}')" class="text-blue-600 font-medium hover:underline cursor-pointer focus:outline-none">${row.reportNum}</button></td>
               <td class="px-4 py-3 text-gray-600">${row.address}</td>
             </tr>`;
         });
         document.getElementById('tableWrapper').classList.remove('hidden');
       } catch(err) {
-        alert("Search failed. Verify connectivity parameters.");
+        alert("System Network Log:\n" + err.message + "\n\nIf this says 'Failed to fetch', open this page inside an Incognito / Private window to bypass extension browser blocks.");
       } finally {
         toggleStatus(false);
       }
@@ -150,7 +155,7 @@
         if(data.error) throw new Error(data.error);
         window.open(data.downloadUrl, '_blank');
       } catch(err) {
-        alert("Error generating target document: " + err.message);
+        alert("Error generating document link: " + err.message);
       } finally {
         toggleStatus(false);
       }
