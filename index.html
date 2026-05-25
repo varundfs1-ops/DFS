@@ -1,38 +1,160 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        h1 {
-            color: #333;
-        }
-        p {
-            color: #666;
-            line-height: 1.6;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fire Report Portal</title>
+  <!-- Tailwind CSS for modern look -->
+  <script src="https://jsdelivr.net"></script>
 </head>
-<body>
-    <div class="container">
-        <h1>Welcome to My Website</h1>
-        <p>This is a sample HTML page created for my repository.</p>
-        <p>Feel free to edit this content and customize it to your needs!</p>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+
+  <div class="bg-white p-8 rounded-xl shadow-md w-full max-w-2xl">
+    <h2 class="text-2xl font-bold text-center text-red-600 mb-6">🧯 Fire Records Portal</h2>
+    
+    <!-- Segmented Navigation Toggle -->
+    <div class="flex bg-gray-200 p-1 rounded-lg mb-6">
+      <button id="tab1" onclick="switchTab('direct')" class="w-1/2 text-center py-2 rounded-md font-medium text-sm transition bg-white text-gray-800 shadow">Search by Report #</button>
+      <button id="tab2" onclick="switchTab('browse')" class="w-1/2 text-center py-2 rounded-md font-medium text-sm transition text-gray-600 hover:text-gray-800">Browse Station & Dates</button>
     </div>
+
+    <!-- Interface A: Direct Report Look Up -->
+    <div id="directView" class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Enter Fire Report Number</label>
+        <input type="text" id="directReportNum" placeholder="e.g. FR-2026-004" class="w-full border border-gray-300 rounded-lg p-2.5 outline-none focus:border-red-500">
+      </div>
+      <button onclick="downloadDirectReport()" class="w-full bg-red-600 hover:bg-red-700 text-white font-medium p-2.5 rounded-lg transition">Download / Print Report</button>
+    </div>
+
+    <!-- Interface B: Browse Station and Dates -->
+    <div id="browseView" class="space-y-4 hidden">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Station Name</label>
+          <input type="text" id="stationName" placeholder="Station A" class="w-full border border-gray-300 rounded-lg p-2 outline-none focus:border-red-500">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">From Date</label>
+          <input type="date" id="startDate" class="w-full border border-gray-300 rounded-lg p-2 outline-none focus:border-red-500">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">To Date</label>
+          <input type="date" id="endDate" class="w-full border border-gray-300 rounded-lg p-2 outline-none focus:border-red-500">
+        </div>
+      </div>
+      <button onclick="searchIncidents()" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-medium p-2.5 rounded-lg transition">Search Records</button>
+      
+      <!-- Results Table -->
+      <div id="tableWrapper" class="overflow-x-auto mt-6 hidden">
+        <table class="min-w-full divide-y divide-gray-200 text-sm">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-4 py-2 text-left font-medium text-gray-500">S.No</th>
+              <th class="px-4 py-2 text-left font-medium text-gray-500">Report Number</th>
+              <th class="px-4 py-2 text-left font-medium text-gray-500">Incident Address</th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody" class="divide-y divide-gray-100 bg-white"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Status Message Indicator -->
+    <div id="statusMsg" class="mt-4 text-center text-sm font-medium text-gray-500 hidden">Processing your request... Please wait.</div>
+  </div>
+
+  <script>
+    // Paste your Google Apps Script Web App URL here
+    const API_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE";
+
+    function switchTab(type) {
+      const t1 = document.getElementById('tab1'), t2 = document.getElementById('tab2');
+      const v1 = document.getElementById('directView'), v2 = document.getElementById('browseView');
+      if (type === 'direct') {
+        t1.className = "w-1/2 text-center py-2 rounded-md font-medium text-sm transition bg-white text-gray-800 shadow";
+        t2.className = "w-1/2 text-center py-2 rounded-md font-medium text-sm transition text-gray-600 hover:text-gray-800";
+        v1.classList.remove('hidden'); v2.classList.add('hidden');
+      } else {
+        t2.className = "w-1/2 text-center py-2 rounded-md font-medium text-sm transition bg-white text-gray-800 shadow";
+        t1.className = "w-1/2 text-center py-2 rounded-md font-medium text-sm transition text-gray-600 hover:text-gray-800";
+        v2.classList.remove('hidden'); v1.classList.add('hidden');
+      }
+    }
+
+    function toggleStatus(show, text = "Processing...") {
+      const element = document.getElementById('statusMsg');
+      element.innerText = text;
+      element.classList.toggle('hidden', !show);
+    }
+
+    async function downloadDirectReport() {
+      const num = document.getElementById('directReportNum').value.trim();
+      if(!num) return alert("Please enter a report number.");
+      
+      toggleStatus(true, "Generating PDF document template... Please wait.");
+      try {
+        const response = await fetch(`${API_URL}?action=generatePdf&reportNum=${encodeURIComponent(num)}`);
+        const data = await response.json();
+        if(data.error) throw new Error(data.error);
+        window.open(data.downloadUrl, '_blank');
+      } catch(err) {
+        alert("Error: " + err.message);
+      } finally {
+        toggleStatus(false);
+      }
+    }
+
+    async function searchIncidents() {
+      const station = document.getElementById('stationName').value.trim();
+      const start = document.getElementById('startDate').value;
+      const end = document.getElementById('endDate').value;
+      
+      if(!station || !start || !end) return alert("Please fill out all search inputs.");
+      
+      toggleStatus(true, "Searching database records...");
+      try {
+        const response = await fetch(`${API_URL}?action=search&station=${encodeURIComponent(station)}&start=${start}&end=${end}`);
+        const data = await response.json();
+        
+        const tbody = document.getElementById('resultsBody');
+        tbody.innerHTML = "";
+        
+        if(data.length === 0) {
+          document.getElementById('tableWrapper').classList.add('hidden');
+          alert("No records found matching those parameters.");
+          return;
+        }
+        
+        data.forEach(row => {
+          tbody.innerHTML += `
+            <tr class="hover:bg-gray-50">
+              <td class="px-4 py-3 text-gray-600">${row.serial}</td>
+              <td class="px-4 py-3"><button onclick="getReportFromTable('${row.reportNum}')" class="text-blue-600 font-medium hover:underline cursor-pointer">${row.reportNum}</button></td>
+              <td class="px-4 py-3 text-gray-600">${row.address}</td>
+            </tr>`;
+        });
+        document.getElementById('tableWrapper').classList.remove('hidden');
+      } catch(err) {
+        alert("Search failed. Verify connectivity parameters.");
+      } finally {
+        toggleStatus(false);
+      }
+    }
+
+    async function getReportFromTable(num) {
+      toggleStatus(true, `Compiling PDF file for report: ${num}...`);
+      try {
+        const response = await fetch(`${API_URL}?action=generatePdf&reportNum=${encodeURIComponent(num)}`);
+        const data = await response.json();
+        if(data.error) throw new Error(data.error);
+        window.open(data.downloadUrl, '_blank');
+      } catch(err) {
+        alert("Error generating target document: " + err.message);
+      } finally {
+        toggleStatus(false);
+      }
+    }
+  </script>
 </body>
 </html>
